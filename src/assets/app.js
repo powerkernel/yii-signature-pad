@@ -6,16 +6,19 @@
 
 var wrapper = document.getElementById("signature-pad");
 var clearButton = wrapper.querySelector("[data-action=clear]");
-var changeColorButton = wrapper.querySelector("[data-action=change-color]");
 var undoButton = wrapper.querySelector("[data-action=undo]");
-var savePNGButton = wrapper.querySelector("[data-action=save-png]");
-var saveJPGButton = wrapper.querySelector("[data-action=save-jpg]");
-var saveSVGButton = wrapper.querySelector("[data-action=save-svg]");
+var inputTarget = wrapper.getAttribute("data-target");
 var canvas = wrapper.querySelector("canvas");
 var signaturePad = new SignaturePad(canvas, {
     // It's Necessary to use an opaque color when saving image as JPEG;
     // this option can be omitted if only saving as PNG or SVG
-    backgroundColor: 'rgb(255, 255, 255)'
+    backgroundColor: 'rgb(255, 255, 255)',
+    onEnd: function () {
+        var dataURL = signaturePad.toDataURL();
+        //inputTarget.set("value", dataURL);
+        $(inputTarget).val(dataURL);
+        //console.log(inputTarget);
+    }
 });
 
 // Adjust canvas coordinate space taking into account pixel ratio,
@@ -38,6 +41,7 @@ function resizeCanvas() {
     // that the state of this library is consistent with visual state of the canvas, you
     // have to clear it manually.
     signaturePad.clear();
+    $(inputTarget).val("");
 }
 
 // On mobile devices it might make more sense to listen to orientation change,
@@ -45,33 +49,6 @@ function resizeCanvas() {
 window.onresize = resizeCanvas;
 resizeCanvas();
 
-function sendToUrl(dataURL,url) {
-    var blob = dataURLToBlob(dataURL);
-    var reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = function () {
-        base64data = reader.result;
-        $.post(url, {signature: base64data}, function (data) {
-            console.log(data)
-        });
-    };
-}
-
-
-function download(dataURL, filename) {
-    var blob = dataURLToBlob(dataURL);
-    var url = window.URL.createObjectURL(blob);
-
-    var a = document.createElement("a");
-    a.style = "display: none";
-    a.href = url;
-    a.download = filename;
-
-    document.body.appendChild(a);
-    a.click();
-
-    window.URL.revokeObjectURL(url);
-}
 
 // One could simply use Canvas#toBlob method instead, but it's just to show
 // that it can be done using result of SignaturePad#toDataURL.
@@ -90,66 +67,35 @@ function dataURLToBlob(dataURL) {
     return new Blob([uInt8Array], {type: contentType});
 }
 
-if(clearButton!==null)
+if (clearButton !== null)
     clearButton.addEventListener("click", function (event) {
         signaturePad.clear();
+        $(inputTarget).val("");
     });
 
-if(undoButton!==null)
+if (undoButton !== null)
     undoButton.addEventListener("click", function (event) {
         var data = signaturePad.toData();
 
         if (data) {
             data.pop(); // remove the last dot or line
             signaturePad.fromData(data);
+            if (signaturePad.isEmpty()) {
+                $(inputTarget).val("");
+            } else {
+                $(inputTarget).val(signaturePad.toDataURL());
+            }
+
         }
     });
 
-if(changeColorButton!==null)
-    changeColorButton.addEventListener("click", function (event) {
-        var r = Math.round(Math.random() * 255);
-        var g = Math.round(Math.random() * 255);
-        var b = Math.round(Math.random() * 255);
-        var color = "rgb(" + r + "," + g + "," + b + ")";
 
-        signaturePad.penColor = color;
-    });
-
-if(savePNGButton!==null)
-    savePNGButton.addEventListener("click", function (event) {
-        if (signaturePad.isEmpty()) {
-            alert("Please provide a signature first.");
-        } else {
-            var dataURL = signaturePad.toDataURL();
-            download(dataURL, "signature.png");
-        }
-    });
-
-if(saveJPGButton!==null)
-    saveJPGButton.addEventListener("click", function (event) {
-        if (signaturePad.isEmpty()) {
-            alert("Please provide a signature first.");
-        } else {
-            var dataURL = signaturePad.toDataURL("image/jpeg");
-            download(dataURL, "signature.jpg");
-        }
-    });
-
-if(saveSVGButton!==null)
-    saveSVGButton.addEventListener("click", function (event) {
-        if (signaturePad.isEmpty()) {
-            alert("Please provide a signature first.");
-        } else {
-            var dataURL = signaturePad.toDataURL('image/svg+xml');
-            download(dataURL, "signature.svg");
-        }
-    });
-
-function saveToServer(url) {
+function appendDataTo(target) {
     if (signaturePad.isEmpty()) {
         alert("Please provide a signature first.");
     } else {
         var dataURL = signaturePad.toDataURL();
-        sendToUrl(dataURL,url);
+        //sendToUrl(dataURL,url);
+        $(target).val(dataURL);
     }
 }
